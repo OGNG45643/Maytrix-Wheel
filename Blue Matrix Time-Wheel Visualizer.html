@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blue Matrix Time-Wheel Visualizer</title>
+    <!-- Tailwind CSS for modern responsive layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;600;700&family=Orbitron:wght@400;600;800;900&display=swap');
+
+        body {
+            font-family: 'Fira Code', monospace;
+            background-color: #030712;
+            color: #38bdf8;
+            overflow-x: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Neon Glow Effects */
+        .glow-blue {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.7), 0 0 20px rgba(14, 165, 233, 0.5);
+        }
+        .box-glow {
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.25), inset 0 0 15px rgba(14, 165, 233, 0.1);
+        }
+        .border-glow {
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+        }
+
+        /* Custom Scrollbar for Terminal Data Output */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #030712;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0284c7;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+
+        /* Matrix Rain Background Effect for UI Sidebar */
+        .matrix-bg {
+            background: linear-gradient(180deg, rgba(3, 7, 18, 0.95) 0%, rgba(10, 25, 47, 0.95) 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-gray-950 text-sky-400 selection:bg-sky-500 selection:text-black">
+
+    <!-- Top Navigation Header -->
+    <header class="w-full border-b border-sky-800/60 bg-gray-950/80 backdrop-blur-md p-4 px-6 flex flex-wrap justify-between items-center z-10 box-glow">
+        <div class="flex items-center space-x-3">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></div>
+            <h1 class="font-orbitron text-xl sm:text-2xl font-bold tracking-wider text-cyan-300 glow-blue">
+                NANA2 :: BLUE MATRIX TIME-WHEEL
+            </h1>
+        </div>
+        <div class="flex items-center space-x-6 text-xs sm:text-sm font-mono mt-2 sm:mt-0">
+            <span class="text-sky-500">SCALE: <strong class="text-cyan-300" id="stat-scale">52-NODE INFINITY</strong></span>
+            <span class="text-sky-500">FPS: <strong class="text-cyan-300" id="stat-fps">60</strong></span>
+            <span class="text-sky-500">ANGLE: <strong class="text-cyan-300" id="stat-angle">0.0°</strong></span>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 flex flex-col lg:flex-row w-full max-w-7xl mx-auto p-4 gap-4">
+
+        <!-- Visual Canvas Display Engine -->
+        <section class="flex-1 flex flex-col bg-gray-900/60 border border-sky-900/70 rounded-xl overflow-hidden box-glow relative min-h-[450px] lg:min-h-[600px]">
+            <!-- Canvas Overlay Status Badges -->
+            <div class="absolute top-4 left-4 z-10 flex flex-wrap gap-2 text-xs font-mono">
+                <span class="px-2.5 py-1 rounded bg-sky-950/80 border border-sky-500/40 text-cyan-300 backdrop-blur">
+                    MODE: <span id="mode-badge">POLAR GEOMETRY</span>
+                </span>
+                <span class="px-2.5 py-1 rounded bg-sky-950/80 border border-sky-500/40 text-sky-300 backdrop-blur">
+                    CYCLES: <span id="cycles-badge">1 (52 NODES)</span>
+                </span>
+            </div>
+
+            <div class="absolute top-4 right-4 z-10 flex gap-2">
+                <button id="btn-pause" class="px-3 py-1 text-xs font-mono rounded bg-sky-900/40 border border-sky-500/50 hover:bg-sky-500 hover:text-black transition-all">
+                    PAUSE / PLAY
+                </button>
+                <button id="btn-reset" class="px-3 py-1 text-xs font-mono rounded bg-sky-900/40 border border-sky-500/50 hover:bg-sky-500 hover:text-black transition-all">
+                    RESET ANGLE
+                </button>
+            </div>
+
+            <!-- Canvas Element -->
+            <canvas id="matrixCanvas" class="w-full h-full block cursor-crosshair flex-1"></canvas>
+
+            <!-- Bottom Live Coordinate Status Strip -->
+            <div class="border-t border-sky-900/50 bg-gray-950/80 px-4 py-2 flex justify-between items-center text-xs font-mono text-sky-400/80">
+                <span id="canvas-mouse-coords">CURSOR: X: 0 | Y: 0</span>
+                <span id="canvas-node-hover">HOVERING: NONE</span>
+            </div>
+        </section>
+
+        <!-- Sidebar Control & Live Matrix Data Stream -->
+        <aside class="w-full lg:w-96 flex flex-col gap-4">
+            
+            <!-- Controls Module -->
+            <div class="bg-gray-900/60 border border-sky-900/70 rounded-xl p-5 box-glow flex flex-col gap-4">
+                <h2 class="font-orbitron text-sm font-semibold text-cyan-300 border-b border-sky-800/60 pb-2 flex items-center justify-between">
+                    <span>PARAMETRIC CONTROLS</span>
+                    <span class="text-xs font-mono text-sky-500">SETTINGS</span>
+                </h2>
+
+                <!-- Render Mode Toggle -->
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-mono text-sky-300">VISUAL MODE</label>
+                    <select id="select-mode" class="w-full bg-gray-950 border border-sky-700/60 rounded p-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-400">
+                        <option value="geometry">Percentage Petal Geometry (3D Shapes)</option>
+                        <option value="polar">Polar Node Grid (52-Step Rings)</option>
+                        <option value="matrix">Matrix Data Stream (Terminal Code)</option>
+                        <option value="etherscan">Etherscan Balance Pie Tiers</option>
+                    </select>
+                </div>
+
+                <!-- Rotation Speed Slider -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between text-xs font-mono">
+                        <span class="text-sky-300">ROTATION SPEED</span>
+                        <span id="val-speed" class="text-cyan-300">1.0x</span>
+                    </div>
+                    <input type="range" id="slider-speed" min="-3" max="3" step="0.1" value="1" class="w-full accent-cyan-400 bg-gray-950 rounded h-1.5 cursor-pointer">
+                </div>
+
+                <!-- Scaling Tiers Slider -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between text-xs font-mono">
+                        <span class="text-sky-300">INFINITY SCALING TIERS</span>
+                        <span id="val-tiers" class="text-cyan-300">6 Tiers</span>
+                    </div>
+                    <input type="range" id="slider-tiers" min="1" max="6" step="1" value="6" class="w-full accent-cyan-400 bg-gray-950 rounded h-1.5 cursor-pointer">
+                </div>
+
+                <!-- Nodes Count Toggle (52 vs 104 vs 156) -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between text-xs font-mono">
+                        <span class="text-sky-300">STEPS PER CYCLE</span>
+                        <span id="val-steps" class="text-cyan-300">52 Steps</span>
+                    </div>
+                    <input type="range" id="slider-steps" min="13" max="104" step="13" value="52" class="w-full accent-cyan-400 bg-gray-950 rounded h-1.5 cursor-pointer">
+                </div>
+
+                <!-- Toggles -->
+                <div class="grid grid-cols-2 gap-2 pt-1 text-xs font-mono">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="chk-grid" checked class="rounded border-sky-700 bg-gray-950 text-cyan-500 focus:ring-0">
+                        <span class="text-sky-300">RADIAL GRID</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="chk-glow" checked class="rounded border-sky-700 bg-gray-950 text-cyan-500 focus:ring-0">
+                        <span class="text-sky-300">NEON GLOW</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Live Matrix Terminal Output Box -->
+            <div class="bg-gray-900/60 border border-sky-900/70 rounded-xl p-4 box-glow flex-1 flex flex-col min-h-[220px]">
+                <div class="flex justify-between items-center border-b border-sky-800/60 pb-2 mb-2">
+                    <h3 class="font-orbitron text-xs font-semibold text-cyan-300">LIVE MATRIX NODE STREAM</h3>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">UTF-8 BLUE</span>
+                </div>
+                <div id="terminal-stream" class="flex-1 bg-gray-950 rounded p-3 font-mono text-[11px] leading-relaxed text-sky-400 overflow-y-auto space-y-1 border border-sky-950">
+                    <!-- Stream content populated dynamically -->
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- Footer Status -->
+    <footer class="w-full border-t border-sky-900/50 bg-gray-950 p-3 text-center text-xs font-mono text-sky-600">
+        BLUE MATRIX TIME-WHEEL SYSTEM &copy; 2026 :: INFINITY SCALING VISUALIZER :: ALL SYSTEMS RUNNING NATIVELY
+    </footer>
+
+    <!-- Canvas Visualization Engine JavaScript -->
+    <script>
+        // Setup Canvas & Context
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        const streamContainer = document.getElementById('terminal-stream');
+
+        // State Management
+        let animationFrameId;
+        let isRunning = true;
+        let rotationAngle = 0;
+        let rotationSpeed = 1.0;
+        let tiersCount = 6;
+        let stepsPerCycle = 52;
+        let visualMode = 'geometry';
+        let showGrid = true;
+        let useGlow = true;
+
+        // FPS Tracker
+        let lastFrameTime = performance.now();
+        let fps = 60;
+
+        // Mouse Tracker
+        let mouseX = 0;
+        let mouseY = 0;
+        let hoveredNode = null;
+
+        // Percentage Weights based on screen data: 35%, 25%, 15%, 10%, 10%, 5%
+        const tierWeights = [0.35, 0.25, 0.15, 0.10, 0.10, 0.05];
+        const tierLabels = [
+            { name: "ETH / Asset 1", val: "$0.000335", pct: "35%" },
+            { name: "Asset Tier 2",  val: "$0.020000", pct: "25%" },
+            { name: "Asset Tier 3",  val: "$0.010000", pct: "15%" },
+            { name: "Asset Tier 4",  val: "$0.007474", pct: "10%" },
+            { name: "Asset Tier 5",  val: "$0.007138", pct: "10%" },
+            { name: "Asset Tier 6",  val: "$0.001211", pct: "5%"  }
+        ];
+
+        // Resize Canvas dynamically
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // UI Listener Bindings
+        document.getElementById('slider-speed').addEventListener('input', (e) => {
+            rotationSpeed = parseFloat(e.target.value);
+            document.getElementById('val-speed').textContent = `${rotationSpeed.toFixed(1)}x`;
+        });
+
+        document.getElementById('slider-tiers').addEventListener('input', (e) => {
+            tiersCount = parseInt(e.target.value);
+            document.getElementById('val-tiers').textContent = `${tiersCount} Tiers`;
+        });
+
+        document.getElementById('slider-steps').addEventListener('input', (e) => {
+            stepsPerCycle = parseInt(e.target.value);
+            document.getElementById('val-steps').textContent = `${stepsPerCycle} Steps`;
+            document.getElementById('stat-scale').textContent = `${stepsPerCycle}-NODE INFINITY`;
+            document.getElementById('cycles-badge').textContent = `1 (${stepsPerCycle} NODES)`;
+        });
+
+        document.getElementById('select-mode').addEventListener('change', (e) => {
+            visualMode = e.target.value;
+            const modeText = e.target.options[e.target.selectedIndex].text.split(' ')[0].toUpperCase();
+            document.getElementById('mode-badge').textContent = modeText;
+        });
+
+        document.getElementById('chk-grid').addEventListener('change', (e) => showGrid = e.target.checked);
+        document.getElementById('chk-glow').addEventListener('change', (e) => useGlow = e.target.checked);
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            isRunning = !isRunning;
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            rotationAngle = 0;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            document.getElementById('canvas-mouse-coords').textContent = `CURSOR: X: ${Math.round(mouseX)} | Y: ${Math.round(mouseY)}`;
+        });
+
+        // Main Render Loop
+        function render(now) {
+            // Calculate FPS
+            const delta = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+            fps = Math.round(1 / delta) || 60;
+            document.getElementById('stat-fps').textContent = fps;
+
+            if (isRunning) {
+                rotationAngle = (rotationAngle + 0.5 * rotationSpeed) % 360;
+            }
+            document.getElementById('stat-angle').textContent = `${rotationAngle.toFixed(1)}°`;
+
+            const width = canvas.getBoundingClientRect().width;
+            const height = canvas.getBoundingClientRect().height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const maxRadius = Math.min(centerX, centerY) * 0.82;
+
+            // Clear Screen
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Background Grid Pattern
+            drawBackgroundMatrixGrid(width, height);
+
+            // Set Glow State
+            if (useGlow) {
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#38bdf8';
+            } else {
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw Radial Background Concentric Grid
+            if (showGrid) {
+                drawRadialGrid(centerX, centerY, maxRadius);
+            }
+
+            // Render selected visual mode
+            hoveredNode = null;
+            if (visualMode === 'geometry') {
+                renderPetalGeometry(centerX, centerY, maxRadius);
+            } else if (visualMode === 'polar') {
+                renderPolarNodes(centerX, centerY, maxRadius);
+            } else if (visualMode === 'matrix') {
+                renderMatrixStreamWheel(centerX, centerY, maxRadius);
+            } else if (visualMode === 'etherscan') {
+                renderEtherscanPieTiers(centerX, centerY, maxRadius);
+            }
+
+            // Draw Central Hub / Horn
+            drawCentralHub(centerX, centerY);
+
+            // Update Side Terminal Matrix Log stream
+            updateTerminalStream();
+
+            animationFrameId = requestAnimationFrame(render);
+        }
+
+        // Draw Subdued Background Grid Lines
+        function drawBackgroundMatrixGrid(w, h) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(14, 165, 233, 0.05)';
+            ctx.lineWidth = 1;
+            const step = 30;
+
+            for (let x = 0; x < w; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            for (let y = 0; y < h; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Draw Polar Axes and Concentric Ring Guides
+        function drawRadialGrid(cx, cy, maxR) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+            ctx.lineWidth = 1;
+
+            // Concentric Rings for each active tier
+            for (let i = 1; i <= tiersCount; i++) {
+                const r = (maxR / tiersCount) * i;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Spokes for key steps
+            const spokes = 12;
+            for (let i = 0; i < spokes; i++) {
+                const rad = (Math.PI * 2 / spokes) * i;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(rad) * maxR, cy + Math.sin(rad) * maxR);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 1. Percentage Petal Geometry Mode
+        function renderPetalGeometry(cx, cy, maxR) {
+            ctx.save();
+            const radOffset = (rotationAngle * Math.PI) / 180;
+
+            for (let t = 0; t < tiersCount; t++) {
+                const weight = tierWeights[t];
+                const tierR = (maxR / tiersCount) * (t + 1);
+                const baseR = (maxR / tiersCount) * t;
+                const petals = 6;
+
+                ctx.beginPath();
+                for (let i = 0; i <= stepsPerCycle; i++) {
+                    const angle = (Math.PI * 2 / stepsPerCycle) * i + radOffset;
+                    // Modulate radius by weight percentage & harmonic sine
+                    const wave = Math.sin(angle * petals) * (tierR - baseR) * weight * 2;
+                    const r = baseR + (tierR - baseR) * 0.5 + wave;
+                    
+                    const x = cx + Math.cos(angle) * r;
+                    const y = cy + Math.sin(angle) * r;
+
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+
+                // Styling based on percentage tier
+                ctx.strokeStyle = `hsl(${190 + t * 15}, 90%, ${65 - t * 5}%)`;
+                ctx.lineWidth = 2;
+                ctx.fillStyle = `hsla(${190 + t * 15}, 90%, 50%, 0.12)`;
+                ctx.fill();
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 2. Polar Node Grid Mode (52-Step Rings)
+        function renderPolarNodes(cx, cy, maxR) {
+            ctx.save();
+            const radOffset = (rotationAngle * Math.PI) / 180;
+
+            for (let t = 0; t < tiersCount; t++) {
+                const r = (maxR / tiersCount) * (t + 1);
+                const color = `hsl(${185 + t * 20}, 100%, 65%)`;
+
+                for (let s = 1; s <= stepsPerCycle; s++) {
+                    const angle = (Math.PI * 2 / stepsPerCycle) * s + radOffset;
+                    const x = cx + Math.cos(angle) * r;
+                    const y = cy + Math.sin(angle) * r;
+
+                    // Hover check
+                    const dist = Math.hypot(mouseX - x, mouseY - y);
+                    const isHovered = dist < 8;
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, isHovered ? 6 : 3, 0, Math.PI * 2);
+                    ctx.fillStyle = isHovered ? '#ffffff' : color;
+                    ctx.fill();
+
+                    if (isHovered) {
+                        hoveredNode = { step: s, tier: t + 1, x: x, y: y, angle: ((angle * 180 / Math.PI) % 360).toFixed(1) };
+                        ctx.strokeStyle = '#38bdf8';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.restore();
+
+            if (hoveredNode) {
+                document.getElementById('canvas-node-hover').textContent = 
+                    `HOVERING: TIER ${hoveredNode.tier} | STEP ${hoveredNode.step}/${stepsPerCycle} | ANGLE ${hoveredNode.angle}°`;
+            }
+        }
+
+        // 3. Matrix Data Stream Terminal Wheel Mode
+        function renderMatrixStreamWheel(cx, cy, maxR) {
+            ctx.save();
+            ctx.font = '10px "Fira Code", monospace';
+            const radOffset = (rotationAngle * Math.PI) / 180;
+
+            for (let t = 0; t < tiersCount; t++) {
+                const r = (maxR / tiersCount) * (t + 1);
+                const stepIncrement = Math.max(1, Math.floor(stepsPerCycle / 16));
+
+                for (let s = 1; s <= stepsPerCycle; s += stepIncrement) {
+                    const angle = (Math.PI * 2 / stepsPerCycle) * s + radOffset;
+                    const x = cx + Math.cos(angle) * r;
+                    const y = cy + Math.sin(angle) * r;
+
+                    const cartesianX = ((x - cx) / 10).toFixed(1);
+                    const cartesianY = ((cy - y) / 10).toFixed(1);
+                    const label = `(${cartesianX >= 0 ? '+' : ''}${cartesianX},${cartesianY >= 0 ? '+' : ''}${cartesianY})`;
+
+                    ctx.fillStyle = (s % 2 === 0) ? '#38bdf8' : '#0284c7';
+                    ctx.fillText(label, x - 20, y);
+                }
+            }
+            ctx.restore();
+        }
+
+        // 4. Etherscan Balance Pie Tiers Mode
+        function renderEtherscanPieTiers(cx, cy, maxR) {
+            ctx.save();
+            const radOffset = (rotationAngle * Math.PI) / 180;
+            let startAngle = radOffset;
+
+            for (let i = 0; i < tiersCount; i++) {
+                const sliceAngle = Math.PI * 2 * tierWeights[i];
+                const endAngle = startAngle + sliceAngle;
+                const r = maxR * (0.4 + (i * 0.1));
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, r, startAngle, endAngle);
+                ctx.closePath();
+
+                ctx.fillStyle = `hsla(${190 + i * 25}, 85%, 45%, 0.35)`;
+                ctx.strokeStyle = `hsl(${190 + i * 25}, 90%, 65%)`;
+                ctx.lineWidth = 2;
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw percentage text inside wedge
+                const midAngle = startAngle + sliceAngle / 2;
+                const textX = cx + Math.cos(midAngle) * (r * 0.7);
+                const textY = cy + Math.sin(midAngle) * (r * 0.7);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px Orbitron, sans-serif';
+                ctx.fillText(tierLabels[i].pct, textX - 12, textY);
+
+                startAngle = endAngle;
+            }
+            ctx.restore();
+        }
+
+        // Draw Glowing Center Hub
+        function drawCentralHub(cx, cy) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+            ctx.fillStyle = '#030712';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Throttle updates to terminal data output box
+        let lastStreamUpdate = 0;
+        function updateTerminalStream() {
+            const now = performance.now();
+            if (now - lastStreamUpdate < 150) return; // Update every 150ms
+            lastStreamUpdate = now;
+
+            const angle = Math.round(rotationAngle);
+            const activeTier = Math.floor((angle / 60) % tiersCount) + 1;
+            const weight = (tierWeights[activeTier - 1] * 100).toFixed(0);
+
+            const sampleNodeX = (Math.cos(rotationAngle * Math.PI / 180) * activeTier * 1.5).toFixed(1);
+            const sampleNodeY = (Math.sin(rotationAngle * Math.PI / 180) * activeTier * 1.5).toFixed(1);
+
+            const streamLine = document.createElement('div');
+            streamLine.className = 'font-mono text-[10px] leading-tight flex justify-between border-b border-sky-950/40 pb-0.5';
+            streamLine.innerHTML = `
+                <span class="text-sky-300">T${activeTier} [${weight}%]</span>
+                <span class="text-cyan-400">(${sampleNodeX >= 0 ? '+' : ''}${sampleNodeX},${sampleNodeY >= 0 ? '+' : ''}${sampleNodeY})</span>
+                <span class="text-sky-500">ANG:${angle}°</span>
+            `;
+
+            streamContainer.appendChild(streamLine);
+
+            // Keep maximum lines in log container
+            while (streamContainer.children.length > 25) {
+                streamContainer.removeChild(streamContainer.firstChild);
+            }
+
+            streamContainer.scrollTop = streamContainer.scrollHeight;
+        }
+
+        // Start animation loop
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>
