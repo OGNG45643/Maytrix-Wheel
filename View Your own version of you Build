@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blue Matrix Time-Wheel Visualizer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #030712;
+            color: #00f0ff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+            overflow-x: hidden;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #0055ff;
+            width: 100%;
+            max-width: 600px;
+            padding-bottom: 10px;
+        }
+        h1 { font-size: 1.2rem; letter-spacing: 2px; color: #00ffff; text-shadow: 0 0 10px #0088ff; }
+        .subtitle { font-size: 0.75rem; color: #3b82f6; margin-top: 4px; }
+        .canvas-container {
+            position: relative;
+            background: rgba(0, 10, 30, 0.7);
+            border: 2px solid #0044ff;
+            box-shadow: 0 0 20px rgba(0, 85, 255, 0.4);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        canvas { display: block; background: #010409; }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+            max-width: 600px;
+            background: rgba(0, 20, 50, 0.5);
+            border: 1px solid #1e3a8a;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 0.7rem; color: #93c5fd; text-transform: uppercase; }
+        button, select {
+            background: #1e3a8a;
+            color: #ffffff;
+            border: 1px solid #3b82f6;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:active, select:active { background: #2563eb; }
+        .stats {
+            margin-top: 15px;
+            font-size: 0.75rem;
+            color: #60a5fa;
+            text-align: center;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>NANA2 MATRIX TIME-WHEEL</h1>
+        <div class="subtitle">INFINITY SCALING &middot; 52-NODE GRID &middot; BLUE MATRIX</div>
+    </header>
+
+    <div class="canvas-container">
+        <canvas id="matrixCanvas" width="360" height="360"></canvas>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Visual Mode</label>
+            <select id="modeSelect">
+                <option value="matrix">Matrix Stream</option>
+                <option value="geometric">Geometric Petals</option>
+                <option value="polar">Polar Node Rings</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Rotation Speed</label>
+            <button id="speedBtn">Speed: 1x</button>
+        </div>
+    </div>
+
+    <div class="stats" id="statsDisplay">
+        ACTIVE TIER: 1 (35%) | NODES: 52 / 312 TOTAL | ANGLE: 0°
+    </div>
+
+    <script>
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        const modeSelect = document.getElementById('modeSelect');
+        const speedBtn = document.getElementById('speedBtn');
+        const statsDisplay = document.getElementById('statsDisplay');
+
+        let rotationAngle = 0;
+        let speedMultiplier = 1;
+        const weights = [0.35, 0.25, 0.15, 0.10, 0.10, 0.05];
+        const totalSteps = 52;
+
+        speedBtn.addEventListener('click', () => {
+            speedMultiplier = speedMultiplier >= 3 ? 0.5 : speedMultiplier + 0.5;
+            speedBtn.textContent = `Speed: ${speedMultiplier}x`;
+        });
+
+        function drawGridBackground(centerX, centerY) {
+            ctx.strokeStyle = 'rgba(0, 68, 255, 0.15)';
+            ctx.lineWidth = 1;
+            // Draw radar grid lines
+            for (let r = 50; r <= 160; r += 35) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.moveTo(centerX - 170, centerY); ctx.lineTo(centerX + 170, centerY);
+            ctx.moveTo(centerX, centerY - 170); ctx.lineTo(centerX, centerY + 170);
+            ctx.stroke();
+        }
+
+        function render() {
+            ctx.fillStyle = 'rgba(1, 4, 9, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            drawGridBackground(centerX, centerY);
+
+            const mode = modeSelect.value;
+
+            weights.forEach((weight, tierIndex) => {
+                const tier = tierIndex + 1;
+                const baseRadius = tier * 25;
+                const alpha = 0.4 + (weight * 1.2);
+                
+                ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`;
+                ctx.fillStyle = `rgba(0, 120, 255, ${alpha * 0.3})`;
+                ctx.lineWidth = tier === 1 ? 2 : 1;
+
+                if (mode === 'geometric') {
+                    // Draw connected geometric percentage polygon shapes
+                    ctx.beginPath();
+                    for (let step = 1; step <= totalSteps; step++) {
+                        const angle = (2 * Math.PI * step) / totalSteps + rotationAngle * (tierIndex % 2 === 0 ? 1 : -1);
+                        const radiusOffset = Math.sin(angle * tier + rotationAngle * 2) * (weight * 40);
+                        const r = baseRadius + radiusOffset;
+                        const x = centerX + r * Math.cos(angle);
+                        const y = centerY + r * Math.sin(angle);
+
+                        if (step === 1) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.fill();
+                } else {
+                    // Draw Node points / Matrix Stream
+                    for (let step = 1; step <= totalSteps; step += (mode === 'matrix' ? 4 : 2)) {
+                        const angle = (2 * Math.PI * step) / totalSteps + rotationAngle;
+                        const r = baseRadius + (mode === 'matrix' ? Math.sin(rotationAngle * 3 + step) * 10 : 0);
+                        const x = centerX + r * Math.cos(angle);
+                        const y = centerY + r * Math.sin(angle);
+
+                        ctx.fillStyle = tierIndex === 0 ? '#ffffff' : '#00f0ff';
+                        ctx.beginPath();
+                        ctx.arc(x, y, tierIndex === 0 ? 2.5 : 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            });
+
+            // Center core pulse
+            ctx.fillStyle = '#00f0ff';
+            ctx.shadowColor = '#0088ff';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0; // Reset
+
+            // Update rotation and stats text
+            rotationAngle += 0.015 * speedMultiplier;
+            const currentDeg = Math.floor((rotationAngle * (180 / Math.PI)) % 360);
+            statsDisplay.textContent = `ACTIVE MODE: ${mode.toUpperCase()} | NODES: 312 INFINITY MAPPED | ROTATION: ${currentDeg}°`;
+
+            requestAnimationFrame(render);
+        }
+
+        render();
+    </script>
+</body>
+</html>
